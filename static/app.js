@@ -446,7 +446,7 @@ function renderLocatorsTable(el) {
         row.innerHTML = `
             <td style="text-align: center; vertical-align: middle;">
                 <label class="radio-container">
-                    <input type="radio" name="primary-locator" ${isChecked ? 'checked' : ''} onchange="setPrimaryLocator('${el.id}', ${index})" />
+                    <input type="radio" name="primary-locator-${el.id}" ${isChecked ? 'checked' : ''} />
                     <span class="radio-checkmark"></span>
                 </label>
             </td>
@@ -455,11 +455,26 @@ function renderLocatorsTable(el) {
             </td>
             <td class="locator-value-cell">${escapeHtml(loc.value)}</td>
             <td style="text-align: center;">
-                <button class="row-copy-btn" onclick="copyText(\`${loc.value}\`, 'Selector copied!')" title="Copy Selector">
+                <button class="row-copy-btn" title="Copy Selector">
                     <i class="fa-regular fa-copy"></i>
                 </button>
             </td>
         `;
+        
+        // Bind event listeners programmatically to avoid HTML attribute nesting and quote-escaping bugs
+        const radioInput = row.querySelector('input[type="radio"]');
+        if (radioInput) {
+            radioInput.addEventListener('change', () => {
+                setPrimaryLocator(el.id, index);
+            });
+        }
+        
+        const copyButton = row.querySelector('.row-copy-btn');
+        if (copyButton) {
+            copyButton.addEventListener('click', () => {
+                copyText(loc.value, 'Selector copied!');
+            });
+        }
         
         tbody.appendChild(row);
     });
@@ -805,7 +820,7 @@ function initSandboxFrame() {
     const customScript = `
         <script>
             // Bounding scripts running inside iframe sandboxing
-            document.addEventListener('DOMContentLoaded', () => {
+            function initInteractiveSandbox() {
                 const targetTags = ['input', 'button', 'textarea', 'select', 'a', 'form'];
                 
                 // Track element indexes matching backend order
@@ -865,12 +880,22 @@ function initSandboxFrame() {
                         }, '*');
                     });
                 });
-            });
+            }
+
+            // Ultra-robust execution guard: Run immediately if DOM is already interactive/complete, otherwise defer to DOMContentLoaded
+            if (document.readyState === 'interactive' || document.readyState === 'complete') {
+                initInteractiveSandbox();
+            } else {
+                document.addEventListener('DOMContentLoaded', initInteractiveSandbox);
+            }
         </script>
     `;
     
+    // Strip original script tags from rawHtml to prevent dynamic DOM modifications,
+    // page redirects, or event interference, while keeping our injected script safe!
+    let finalHtml = state.rawHtml.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+    
     // Inject scripts directly before closing head or closing body
-    let finalHtml = state.rawHtml;
     if (finalHtml.includes('</head>')) {
         finalHtml = finalHtml.replace('</head>', `${customStyles}</head>`);
     } else {
