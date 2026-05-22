@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoLocator Studio - Test Automation Locator Generator</title>
+    <!-- Google Fonts: Outfit for geometric clean UI, JetBrains Mono for code -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome for beautiful icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Floating Ambient Glow Elements -->
+        <div class="ambient-glow glow-1"></div>
+        <div class="ambient-glow glow-2"></div>
+        
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo">
+                <i class="fa-solid fa-wand-magic-sparkles logo-icon"></i>
+                <div class="logo-text">
+                    <h1>AutoLocator <span>Studio</span></h1>
+                    <p>AI-Powered Test Automation Page Object Generator</p>
+                </div>
+            </div>
+            <div class="system-status">
+                <span class="status-badge"><i class="fa-solid fa-circle-check"></i> Connected & Ready</span>
+            </div>
+        </header>
+
+        <!-- Main Input Controller -->
+        <section class="input-section glass-panel">
+            <div class="tabs-container">
+                <button class="tab-btn active" id="url-tab-btn" onclick="switchInputTab('url')">
+                    <i class="fa-solid fa-globe"></i> Scan Web URL
+                </button>
+                <button class="tab-btn" id="html-tab-btn" onclick="switchInputTab('html')">
+                    <i class="fa-solid fa-code"></i> Paste HTML Code
+                </button>
+            </div>
+            
+            <div class="tab-content active" id="url-tab-content">
+                <form id="url-form" onsubmit="handleUrlSubmit(event)">
+                    <div class="search-bar-wrapper">
+                        <i class="fa-solid fa-link input-icon"></i>
+                        <input type="url" id="page-url" placeholder="https://example.com/login" required />
+                        <button type="submit" class="action-btn glow-button" id="url-submit-btn">
+                            <span>Scan Webpage</span> <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="tab-content" id="html-tab-content">
+                <form id="html-form" onsubmit="handleHtmlSubmit(event)">
+                    <div class="textarea-wrapper">
+                        <textarea id="raw-html" placeholder="Paste your HTML page source code here..." required></textarea>
+                        <button type="submit" class="action-btn glow-button" id="html-submit-btn">
+                            <span>Analyze Source</span> <i class="fa-solid fa-bolt"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- Main Dashboard Workspace -->
+        <main class="workspace-grid" id="main-workspace" style="display: none;">
+            
+            <!-- Column 1: Element Explorer -->
+            <section class="workspace-col col-explorer glass-panel">
+                <div class="panel-header">
+                    <h2><i class="fa-solid fa-compass"></i> Element Explorer</h2>
+                    <span class="count-badge" id="total-count-badge">0 Found</span>
+                </div>
+                
+                <!-- Quick stats -->
+                <div class="stats-mini">
+                    <div class="stat-pill" onclick="filterCategory('all')" id="stat-all-pill">
+                        <span class="label">All</span> <span class="val" id="cnt-all">0</span>
+                    </div>
+                    <div class="stat-pill" onclick="filterCategory('button')" id="stat-button-pill">
+                        <span class="label">Buttons</span> <span class="val" id="cnt-button">0</span>
+                    </div>
+                    <div class="stat-pill" onclick="filterCategory('input')" id="stat-input-pill">
+                        <span class="label">Inputs</span> <span class="val" id="cnt-input">0</span>
+                    </div>
+                    <div class="stat-pill" onclick="filterCategory('link')" id="stat-link-pill">
+                        <span class="label">Links</span> <span class="val" id="cnt-link">0</span>
+                    </div>
+                </div>
+
+                <div class="filter-controls">
+                    <div class="search-input-wrapper">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="element-search" placeholder="Filter by text, id, tag..." oninput="filterElements()" />
+                    </div>
+                    <div class="selection-bulk-actions">
+                        <label class="checkbox-container">
+                            <input type="checkbox" id="select-all-checkbox" checked onchange="toggleSelectAll(this)" />
+                            <span class="checkmark"></span>
+                            <span class="label-text">Select All</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="elements-scroll-list" id="elements-list">
+                    <!-- Dynamic Element Cards Inject Here -->
+                </div>
+            </section>
+
+            <!-- Column 2: Element Inspector -->
+            <section class="workspace-col col-inspector glass-panel">
+                <div class="panel-header">
+                    <h2><i class="fa-solid fa-magnifying-glass-chart"></i> Selector Details</h2>
+                </div>
+                
+                <!-- Empty State -->
+                <div class="empty-inspector-state" id="empty-inspector">
+                    <i class="fa-solid fa-arrow-pointer empty-icon"></i>
+                    <h3>No Element Selected</h3>
+                    <p>Click on any element from the explorer list or the visual preview to configure its locator strategies.</p>
+                </div>
+                
+                <!-- Active Inspector State -->
+                <div class="active-inspector-state" id="active-inspector" style="display: none;">
+                    <div class="inspector-card header-details-card">
+                        <div class="tag-meta">
+                            <span class="element-tag-badge" id="inspect-tag">button</span>
+                            <span class="element-type-badge" id="inspect-type">button</span>
+                        </div>
+                        
+                        <div class="form-group-inspect">
+                            <label for="inspect-var-name">Variable Name</label>
+                            <div class="name-edit-wrapper">
+                                <input type="text" id="inspect-var-name" oninput="updateElementName(this.value)" />
+                                <span class="edit-accent-glow"></span>
+                            </div>
+                        </div>
+
+                        <div class="casing-helpers">
+                            <span class="casing-label">Quick Format:</span>
+                            <button class="casing-chip" onclick="applyQuickCasing('camelCase')">camelCase</button>
+                            <button class="casing-chip" onclick="applyQuickCasing('snake_case')">snake_case</button>
+                            <button class="casing-chip" onclick="applyQuickCasing('PascalCase')">PascalCase</button>
+                        </div>
+                    </div>
+
+                    <div class="inspector-card html-preview-card">
+                        <div class="card-title" onclick="toggleHtmlSnippet()">
+                            <span><i class="fa-solid fa-code"></i> HTML Snippet</span>
+                            <i class="fa-solid fa-chevron-down toggle-icon" id="html-toggle-icon"></i>
+                        </div>
+                        <div class="html-snippet-box" id="inspect-html-snippet">
+                            <code></code>
+                        </div>
+                    </div>
+
+                    <div class="inspector-card locators-list-card">
+                        <h3><i class="fa-solid fa-crosshairs"></i> Generated Locators</h3>
+                        <p class="section-desc">Select the primary locator strategy for code generation.</p>
+                        
+                        <div class="locators-table-container">
+                            <table class="locators-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 8%;">Primary</th>
+                                        <th style="width: 25%;">Strategy</th>
+                                        <th style="width: 55%;">Selector Value</th>
+                                        <th style="width: 12%; text-align: center;">Copy</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="locators-tbody">
+                                    <!-- Dynamic Locator Rows Inject Here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Column 3: Code POM Generator -->
+            <section class="workspace-col col-generator glass-panel">
+                <div class="panel-header">
+                    <h2><i class="fa-solid fa-cubes"></i> Code Generator</h2>
+                </div>
+                
+                <div class="generator-config">
+                    <div class="form-row">
+                        <div class="form-group-config">
+                            <label for="framework-select">Framework</label>
+                            <select id="framework-select" onchange="generateCode()">
+                                <option value="playwright_ts">Playwright (TS/JS)</option>
+                                <option value="playwright_py">Playwright (Python)</option>
+                                <option value="selenium_java">Selenium (Java)</option>
+                                <option value="selenium_py">Selenium (Python)</option>
+                                <option value="cypress_js">Cypress (JS)</option>
+                                <option value="robot_fw">Robot Framework</option>
+                            </select>
+                        </div>
+                        <div class="form-group-config">
+                            <label for="global-casing">Name Casing</label>
+                            <select id="global-casing" onchange="changeGlobalCasing(this.value)">
+                                <option value="camelCase">camelCase</option>
+                                <option value="snake_case">snake_case</option>
+                                <option value="PascalCase">PascalCase</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group-config">
+                        <label for="class-name-input">Page Class Name</label>
+                        <div class="class-name-wrapper">
+                            <input type="text" id="class-name-input" value="LoginPage" oninput="generateCode()" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="code-viewer-container">
+                    <div class="code-header">
+                        <span id="output-filename">LoginPage.ts</span>
+                        <div class="code-actions">
+                            <button class="code-action-btn" onclick="copyGeneratedCode()" title="Copy Code">
+                                <i class="fa-regular fa-copy"></i> Copy
+                            </button>
+                        </div>
+                    </div>
+                    <pre class="code-box"><code id="code-output"></code></pre>
+                </div>
+                
+                <button class="download-pom-btn glow-button" onclick="downloadPageObjectFile()">
+                    <i class="fa-solid fa-file-arrow-down"></i> Download Page Object File
+                </button>
+            </section>
+
+        </main>
+        
+        <!-- Toggle Visual Preview Button -->
+        <div class="visual-preview-drawer-btn" id="preview-drawer-btn" style="display: none;" onclick="toggleVisualPreviewDrawer()">
+            <i class="fa-solid fa-eye"></i> Show Live Web Sandbox View
+        </div>
+
+        <!-- Collapsible Visual Preview Sandbox Drawer -->
+        <section class="visual-preview-drawer glass-panel" id="preview-drawer">
+            <div class="drawer-header">
+                <h3><i class="fa-solid fa-network-wired"></i> Live Visual Element Sandbox</h3>
+                <div class="drawer-actions">
+                    <p class="helper-text"><i class="fa-solid fa-info-circle"></i> Hover to highlight, click to inspect element</p>
+                    <button class="close-drawer-btn" onclick="toggleVisualPreviewDrawer()"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            </div>
+            <div class="sandbox-container">
+                <iframe id="sandbox-iframe" sandbox="allow-same-origin allow-scripts"></iframe>
+            </div>
+        </section>
+    </div>
+    
+    <!-- Toast notifications -->
+    <div id="toast" class="toast"></div>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
