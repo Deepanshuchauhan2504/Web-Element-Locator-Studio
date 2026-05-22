@@ -75,7 +75,7 @@ async function handleUrlSubmit(event) {
         if (data.error) {
             showToast(data.error, 'error');
         } else {
-            loadWorkspace(data.elements, url, data.elements.length > 0 ? data.elements[0].fullHtml : '');
+            loadWorkspace(data.elements, url, data.html || '');
             showToast(`Scanned webpage successfully! Found ${data.elements.length} elements.`, 'success');
         }
     } catch (err) {
@@ -942,6 +942,18 @@ function initSandboxFrame() {
     // Strip original script tags from rawHtml to prevent dynamic DOM modifications,
     // page redirects, or event interference, while keeping our injected script safe!
     let finalHtml = state.rawHtml.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+    
+    // Inject base tag to load relative assets (images, stylesheets, fonts) from the target domain
+    if (state.url && state.url.startsWith('http')) {
+        const baseTag = `<base href="${state.url}">`;
+        if (finalHtml.includes('<head>')) {
+            finalHtml = finalHtml.replace('<head>', `<head>${baseTag}`);
+        } else if (finalHtml.includes('</head>')) {
+            finalHtml = finalHtml.replace('</head>', `${baseTag}</head>`);
+        } else {
+            finalHtml = baseTag + finalHtml;
+        }
+    }
     
     // Inject scripts directly before closing head or closing body
     if (finalHtml.includes('</head>')) {

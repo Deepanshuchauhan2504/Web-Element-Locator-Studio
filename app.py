@@ -41,7 +41,8 @@ def analyze():
         return jsonify({
             'success': True,
             'elements': engine.elements,
-            'url': url or 'Pasted HTML'
+            'url': url or 'Pasted HTML',
+            'html': html_content
         })
     except Exception as e:
         return jsonify({'error': f'Parsing error: {str(e)}'}), 500
