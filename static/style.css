@@ -1097,6 +1097,20 @@ body {
     white-space: pre;
 }
 
+/* Styling for visual line highlight on active element selection */
+.code-element-line {
+    display: inline-block;
+    width: 100%;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+    border-radius: 4px;
+    padding: 0 6px;
+}
+
+.code-element-line.active-line-highlight {
+    background-color: rgba(0, 242, 254, 0.15) !important;
+    box-shadow: inset 3px 0 0 var(--color-primary);
+}
+
 .download-pom-btn {
     margin: 0 16px 16px;
     display: flex;

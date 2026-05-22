@@ -338,6 +338,33 @@ function selectElement(id) {
     
     // Sync highlight visually in Visual Sandbox iframe
     syncVisualSandboxHighlight(el);
+    
+    // Highlight the corresponding code line in right panel
+    highlightCodeLine(id);
+}
+
+// Highlight and scroll to the code line corresponding to active element
+function highlightCodeLine(id) {
+    // Clear previous highlights
+    document.querySelectorAll('.code-element-line').forEach(line => {
+        line.classList.remove('active-line-highlight');
+    });
+    
+    // Find all matching lines (since an element might have both field and constructor mapping in some POMs)
+    const matchingLines = document.querySelectorAll(`.code-element-line[data-element-id="${id}"]`);
+    if (matchingLines.length > 0) {
+        matchingLines.forEach(line => {
+            line.classList.add('active-line-highlight');
+        });
+        
+        // Scroll the first matching line into view inside pre container
+        const firstLine = matchingLines[0];
+        const preContainer = document.querySelector('.code-box');
+        if (preContainer && firstLine) {
+            // Scroll smoothly to line
+            firstLine.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }
 }
 
 // Reset inspector pane to empty state
@@ -546,11 +573,16 @@ function generateCode() {
             break;
     }
     
-    // Update code output
-    document.getElementById('code-output').innerText = generatedCode;
+    // Update code output (use innerHTML to render visual line spans)
+    document.getElementById('code-output').innerHTML = generatedCode;
     
     // Update filename display
     document.getElementById('output-filename').innerText = `${className}.${ext}`;
+
+    // Re-apply highlight if there is an active element
+    if (state.activeElementId) {
+        highlightCodeLine(state.activeElementId);
+    }
 }
 
 function compilePlaywrightTS(elements, className) {
@@ -562,13 +594,16 @@ function compilePlaywrightTS(elements, className) {
         const loc = el.locators.find(l => l.type === el.primaryLocatorType) || el.locators[0];
         const pwString = loc.frameworks.Playwright;
         
-        fields += `    readonly ${el.customName}: Locator;\n`;
-        methods += `        this.${el.customName} = ${pwString};\n`;
+        const escapedName = escapeHtml(el.customName);
+        const escapedLocator = escapeHtml(pwString);
+        
+        fields += `    <span class="code-element-line" data-element-id="${el.id}">readonly ${escapedName}: Locator;</span>\n`;
+        methods += `        <span class="code-element-line" data-element-id="${el.id}">this.${escapedName} = ${escapedLocator};</span>\n`;
     });
     
     return `import { Page, Locator } from '@playwright/test';
 
-export class ${className} {
+export class ${escapeHtml(className)} {
     readonly page: Page;
 ${fields}
     constructor(page: Page) {
@@ -594,14 +629,17 @@ function compilePlaywrightPy(elements, className) {
             })
             .replace(/page\.locator\('([^']+)'\)/g, 'page.locator("$1")');
             
-        initBody += `        self.${el.customName} = ${pyLocator}\n`;
+        const escapedName = escapeHtml(el.customName);
+        const escapedLocator = escapeHtml(pyLocator);
+            
+        initBody += `        <span class="code-element-line" data-element-id="${el.id}">self.${escapedName} = ${escapedLocator}</span>\n`;
     });
     
     if (!initBody) initBody = "        pass\n";
     
     return `from playwright.sync_api import Page
 
-class ${className}:
+class ${escapeHtml(className)}:
     def __init__(self, page: Page):
         self.page = page;
 ${initBody}`;
@@ -634,7 +672,10 @@ function compileSeleniumJava(elements, className) {
             findByAnnotation = `@FindBy(css = "/* Add selector */")`;
         }
         
-        findBys += `    ${findByAnnotation}\n    private WebElement ${el.customName};\n\n`;
+        const escapedName = escapeHtml(el.customName);
+        const escapedAnnotation = escapeHtml(findByAnnotation);
+        
+        findBys += `    <span class="code-element-line" data-element-id="${el.id}">${escapedAnnotation}\n    private WebElement ${escapedName};</span>\n\n`;
     });
     
     return `import org.openqa.selenium.WebDriver;
@@ -642,10 +683,10 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.FindBy;
 import org.openqa.selenium.support.PageFactory;
 
-public class ${className} {
+public class ${escapeHtml(className)} {
     private WebDriver driver;
 
-${findBys}    public ${className}(WebDriver driver) {
+${findBys}    public ${escapeHtml(className)}(WebDriver driver) {
         this.driver = driver;
         PageFactory.initElements(driver, this);
     }
@@ -654,7 +695,6 @@ ${findBys}    public ${className}(WebDriver driver) {
 }
 
 function compileSeleniumPy(elements, className) {
-    let locatorsTuple = '';
     let initBody = '';
     
     elements.forEach(el => {
@@ -681,14 +721,17 @@ function compileSeleniumPy(elements, className) {
             pyTuple = `(By.CSS_SELECTOR, "")`;
         }
         
-        initBody += `        self.${el.customName} = ${pyTuple}\n`;
+        const escapedName = escapeHtml(el.customName);
+        const escapedTuple = escapeHtml(pyTuple);
+        
+        initBody += `        <span class="code-element-line" data-element-id="${el.id}">self.${escapedName} = ${escapedTuple}</span>\n`;
     });
     
     if (!initBody) initBody = "        pass\n";
     
     return `from selenium.webdriver.common.by import By
 
-class ${className}:
+class ${escapeHtml(className)}:
     def __init__(self, driver):
         self.driver = driver
 ${initBody}`;
@@ -706,13 +749,18 @@ function compileCypressJS(elements, className) {
             cyString = fb ? fb.frameworks.Cypress : `cy.get("button")`;
         }
         
-        getters += `    get ${el.customName}() {\n        return ${cyString};\n    }\n\n`;
+        const escapedName = escapeHtml(el.customName);
+        const escapedCypress = escapeHtml(cyString);
+        
+        getters += `    <span class="code-element-line" data-element-id="${el.id}">get ${escapedName}() {
+        return ${escapedCypress};
+    }</span>\n\n`;
     });
     
-    return `class ${className} {
+    return `class ${escapeHtml(className)} {
 ${getters}}
 
-export default new ${className}();
+export default new ${escapeHtml(className)}();
 `;
 }
 
@@ -728,10 +776,10 @@ function compileRobotFW(elements) {
             rbString = fb ? fb.frameworks.Robot : `css=button`;
         }
         
-        // Robot framework variables:
-        // ${USER_NAME_INPUT}    id=username
-        const rbName = el.customName.toUpperCase();
-        variables += `\${${rbName}}    ${rbString}\n`;
+        const rbName = escapeHtml(el.customName.toUpperCase());
+        const escapedRobot = escapeHtml(rbString);
+        
+        variables += `<span class="code-element-line" data-element-id="${el.id}">\${${rbName}}    ${escapedRobot}</span>\n`;
     });
     
     return `*** Variables ***
