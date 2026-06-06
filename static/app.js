@@ -21,6 +21,211 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const casingSelect = document.getElementById('global-casing');
     if (casingSelect) state.currentCasing = casingSelect.value;
+
+    // Initialize interactive cursor spotlight background
+    const spotlight = document.getElementById('cursor-spotlight');
+    window.addEventListener('mousemove', (e) => {
+        if (spotlight) {
+            spotlight.style.setProperty('--mouse-x', `${e.clientX}px`);
+            spotlight.style.setProperty('--mouse-y', `${e.clientY}px`);
+        }
+    });
+
+    // Delegate mousemove to element explorer cards for spotlight hover border glow
+    const listContainer = document.getElementById('elements-list');
+    if (listContainer) {
+        listContainer.addEventListener('mousemove', (e) => {
+            const card = e.target.closest('.element-card');
+            if (card) {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                card.style.setProperty('--card-mouse-x', `${x}px`);
+                card.style.setProperty('--card-mouse-y', `${y}px`);
+            }
+        });
+    }
+
+    // Keyboard-keystroke reactive flash and dynamic pulse animation listeners
+    let kbFlashTimeout;
+    let panelPulseTimeout;
+    window.addEventListener('keydown', (e) => {
+        // Subtle ambient screen backlight flash on key entry
+        document.body.classList.add('keyboard-active-flash');
+        clearTimeout(kbFlashTimeout);
+        kbFlashTimeout = setTimeout(() => {
+            document.body.classList.remove('keyboard-active-flash');
+        }, 250);
+
+        // Visual pulsing feedback on target fields
+        const active = document.activeElement;
+        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT')) {
+            active.classList.remove('keyboard-pulse');
+            void active.offsetWidth; // Force DOM reflow to reset CSS animation
+            active.classList.add('keyboard-pulse');
+        }
+
+        // Pulse the parent panel container
+        const activePanel = active ? active.closest('.glass-panel') : null;
+        if (activePanel) {
+            activePanel.classList.add('panel-keystroke-pulse');
+            clearTimeout(panelPulseTimeout);
+            panelPulseTimeout = setTimeout(() => {
+                activePanel.classList.remove('panel-keystroke-pulse');
+            }, 150);
+        }
+    });
+
+    // Initialize 3D Interactive Canvas Particle Grid Background
+    const canvas = document.getElementById('bg-interactive-canvas');
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        let points = [];
+        let mouse = { x: -9999, y: -9999 };
+        
+        // Active keydown ripple wave parameters
+        let ripple = {
+            x: 0,
+            y: 0,
+            radius: 0,
+            maxRadius: 0,
+            speed: 16,
+            active: false,
+            opacity: 0
+        };
+
+        // Resize Canvas to fit screen
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            initPoints();
+        }
+
+        // Generate points in a grid layout
+        function initPoints() {
+            points = [];
+            const spacing = 45; // grid cell dimension
+            const cols = Math.ceil(canvas.width / spacing) + 1;
+            const rows = Math.ceil(canvas.height / spacing) + 1;
+
+            for (let c = 0; c < cols; c++) {
+                for (let r = 0; r < rows; r++) {
+                    const bx = c * spacing;
+                    const by = r * spacing;
+                    points.push({
+                        x: bx,
+                        y: by,
+                        baseX: bx,
+                        baseY: by,
+                        size: 2,
+                        baseSize: 2,
+                        color: 'rgba(255, 255, 255, 0.08)'
+                    });
+                }
+            }
+        }
+
+        // Track cursor coordinates globally on window
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        });
+
+        // Spring animation render loop
+        function drawGrid() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Advance ripple wave if active
+            if (ripple.active) {
+                ripple.radius += ripple.speed;
+                ripple.opacity = Math.max(0, 1 - (ripple.radius / ripple.maxRadius));
+                if (ripple.radius >= ripple.maxRadius) {
+                    ripple.active = false;
+                }
+            }
+
+            const maxDist = 180; // Cursor attraction radius
+
+            points.forEach(p => {
+                const dx = mouse.x - p.baseX;
+                const dy = mouse.y - p.baseY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                // 1. Mouse distortion force
+                let forceX = 0;
+                let forceY = 0;
+                let sizeTarget = p.baseSize;
+                let colorTarget = 'rgba(255, 255, 255, 0.08)';
+
+                if (dist < maxDist) {
+                    const factor = (maxDist - dist) / maxDist;
+                    const angle = Math.atan2(dy, dx);
+                    // Deform points away from cursor (dip effect)
+                    const push = factor * 25; 
+                    forceX = -Math.cos(angle) * push;
+                    forceY = -Math.sin(angle) * push;
+                    // Inflate point size (popup effect)
+                    sizeTarget = p.baseSize + (factor * 4.5);
+                    // Blend color to cyan/blue glow
+                    colorTarget = `rgba(0, 242, 254, ${0.1 + factor * 0.5})`;
+                }
+
+                // 2. Keystroke ripple distortion
+                let rippleForceX = 0;
+                let rippleForceY = 0;
+                if (ripple.active) {
+                    const rdx = p.baseX - ripple.x;
+                    const rdy = p.baseY - ripple.y;
+                    const rdist = Math.sqrt(rdx * rdx + rdy * rdy);
+                    const rippleDiff = Math.abs(rdist - ripple.radius);
+
+                    if (rippleDiff < 60) {
+                        const rippleFactor = (60 - rippleDiff) / 60 * ripple.opacity;
+                        const rangle = Math.atan2(rdy, rdx);
+                        // Elevate/displace point (pop out)
+                        const ripplePush = rippleFactor * 18;
+                        rippleForceX = Math.cos(rangle) * ripplePush;
+                        rippleForceY = Math.sin(rangle) * ripplePush;
+                        
+                        sizeTarget = Math.max(sizeTarget, p.baseSize + (rippleFactor * 3.5));
+                        // Blend towards success green wave color
+                        colorTarget = `rgba(0, 245, 160, ${0.15 + rippleFactor * 0.6})`;
+                    }
+                }
+
+                // Apply simple spring equation towards target position
+                const targetX = p.baseX + forceX + rippleForceX;
+                const targetY = p.baseY + forceY + rippleForceY;
+
+                p.x += (targetX - p.x) * 0.15;
+                p.y += (targetY - p.y) * 0.15;
+                p.size += (sizeTarget - p.size) * 0.15;
+                p.color = colorTarget;
+
+                // Render point
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fillStyle = p.color;
+                ctx.fill();
+            });
+
+            requestAnimationFrame(drawGrid);
+        }
+
+        // Initialize grid on startup and window resize
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        requestAnimationFrame(drawGrid);
+
+        // Global keydown triggers ripple wave originating at cursor (or center)
+        window.addEventListener('keydown', (e) => {
+            ripple.x = (mouse.x > 0) ? mouse.x : window.innerWidth / 2;
+            ripple.y = (mouse.y > 0) ? mouse.y : window.innerHeight / 2;
+            ripple.radius = 0;
+            ripple.maxRadius = Math.max(canvas.width, canvas.height) * 0.8;
+            ripple.active = true;
+        });
+    }
 });
 
 // Switch Input Tab
