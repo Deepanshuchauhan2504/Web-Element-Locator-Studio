@@ -67,11 +67,24 @@
             </div>
         </section>
 
+        <!-- Workspace Mobile Tab Navigation -->
+        <div class="workspace-tabs" id="workspace-tabs" style="display: none;">
+            <button class="w-tab-btn active" data-tab="explorer" onclick="switchWorkspaceTab('explorer')">
+                <i class="fa-solid fa-compass"></i> Explorer
+            </button>
+            <button class="w-tab-btn" data-tab="inspector" onclick="switchWorkspaceTab('inspector')">
+                <i class="fa-solid fa-magnifying-glass-chart"></i> Details
+            </button>
+            <button class="w-tab-btn" data-tab="generator" onclick="switchWorkspaceTab('generator')">
+                <i class="fa-solid fa-cubes"></i> Code
+            </button>
+        </div>
+
         <!-- Main Dashboard Workspace -->
         <main class="workspace-grid" id="main-workspace" style="display: none;">
             
             <!-- Column 1: Element Explorer -->
-            <section class="workspace-col col-explorer glass-panel">
+            <section class="workspace-col col-explorer glass-panel active-w-panel">
                 <div class="panel-header">
                     <h2><i class="fa-solid fa-compass"></i> Element Explorer</h2>
                     <span class="count-badge" id="total-count-badge">0 Found</span>

@@ -140,6 +140,11 @@ function loadWorkspace(elements, source, rawHtml) {
     document.getElementById('main-workspace').style.display = 'grid';
     document.getElementById('preview-drawer-btn').style.display = 'flex';
     
+    const wsTabs = document.getElementById('workspace-tabs');
+    if (wsTabs) {
+        wsTabs.style.display = ''; // Fallback to CSS (flex vs none)
+    }
+    
     // Update counters and render list
     updateSummaryStats();
     renderElementsList();
@@ -148,9 +153,9 @@ function loadWorkspace(elements, source, rawHtml) {
     // Initialize Visual Sandbox
     initSandboxFrame();
     
-    // Select the first element by default
+    // Select the first element by default (prevent tab switching on initial load)
     if (state.elements.length > 0) {
-        selectElement(state.elements[0].id);
+        selectElement(state.elements[0].id, true);
     }
     
     // Render code preview
@@ -301,7 +306,7 @@ function toggleElementSelection(id, checked) {
 }
 
 // Select an element to inspect details
-function selectElement(id) {
+function selectElement(id, preventTabSwitch = false) {
     state.activeElementId = id;
     
     // Update active highlight classes in elements explorer
@@ -341,6 +346,11 @@ function selectElement(id) {
     
     // Highlight the corresponding code line in right panel
     highlightCodeLine(id);
+    
+    // Auto-switch to inspector tab on mobile/tablet viewports
+    if (!preventTabSwitch && window.innerWidth < 1024) {
+        switchWorkspaceTab('inspector');
+    }
 }
 
 // Highlight and scroll to the code line corresponding to active element
@@ -1047,4 +1057,31 @@ function copyText(text, successMsg) {
         showToast('Clipboard write failed!', 'error');
         console.error(err);
     });
+}
+
+// Switch workspace tabs on mobile/tablet viewports
+function switchWorkspaceTab(tabId) {
+    // Update active state of tab buttons
+    document.querySelectorAll('.workspace-tabs .w-tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    const activeBtn = document.querySelector(`.workspace-tabs .w-tab-btn[data-tab="${tabId}"]`);
+    if (activeBtn) {
+        activeBtn.classList.add('active');
+    }
+    
+    // Toggle active classes on columns
+    document.querySelectorAll('.workspace-col').forEach(col => {
+        col.classList.remove('active-w-panel');
+    });
+    
+    let targetClass = '';
+    if (tabId === 'explorer') targetClass = 'col-explorer';
+    else if (tabId === 'inspector') targetClass = 'col-inspector';
+    else if (tabId === 'generator') targetClass = 'col-generator';
+    
+    const targetCol = document.querySelector(`.workspace-col.${targetClass}`);
+    if (targetCol) {
+        targetCol.classList.add('active-w-panel');
+    }
 }
